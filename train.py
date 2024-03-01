@@ -81,7 +81,7 @@ def main(cfg):
     ).to(cfg.DEVICE)
 
     if cfg.TRAIN.PRETRAINED != '' and os.path.isfile(cfg.TRAIN.PRETRAINED):
-        checkpoint = torch.load(cfg.TRAIN.PRETRAINED)
+        checkpoint = torch.load(cfg.TRAIN.PRETRAINED, map_location='cpu')
         best_performance = checkpoint['performance']
         generator.load_state_dict(checkpoint['gen_state_dict'])
         print(f'==> Loaded pretrained model from {cfg.TRAIN.PRETRAINED}...')

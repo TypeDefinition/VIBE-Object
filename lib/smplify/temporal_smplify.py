@@ -32,7 +32,7 @@ class TemporalSMPLify():
                  num_iters=100,
                  focal_length=5000,
                  use_lbfgs=True,
-                 device=torch.device('cuda'),
+                 device=torch.device('cpu'),
                  max_iter=20):
 
         # Store options

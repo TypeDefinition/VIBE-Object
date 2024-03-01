@@ -371,7 +371,7 @@ class Trainer():
 
     def resume_pretrained(self, model_path):
         if osp.isfile(model_path):
-            checkpoint = torch.load(model_path)
+            checkpoint = torch.load(model_path, map_location='cpu')
             self.start_epoch = checkpoint['epoch']
             self.generator.load_state_dict(checkpoint['gen_state_dict'])
             self.gen_optimizer.load_state_dict(checkpoint['gen_optimizer'])
