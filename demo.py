@@ -162,6 +162,7 @@ def main(args):
                 batch_size, seqlen = batch.shape[:2]
                 output = model(batch)[-1]
 
+                # This is where vertices are saved. Track backwards.
                 pred_cam.append(output['theta'][:, :, :3].reshape(batch_size * seqlen, -1))
                 pred_verts.append(output['verts'].reshape(batch_size * seqlen, -1, 3))
                 pred_pose.append(output['theta'][:,:,3:75].reshape(batch_size * seqlen, -1))
@@ -317,6 +318,17 @@ def main(args):
                     color=mc,
                     mesh_filename=mesh_filename,
                 )
+                    
+                # Render Object Test Code
+                # img = renderer.render_obj(
+                #     img,
+                #     'assets/monkey.obj',
+                #     cam=frame_cam,
+                #     translation=[0.0, 0.0, 0.0],
+                #     angle=0.0, axis=[1.0, 0.0, 0.0],
+                #     scale=[1.0, 1.0, 1.0],
+                #     color=mc,
+                # )
 
                 if args.sideview:
                     side_img = renderer.render(

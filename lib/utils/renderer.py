@@ -124,3 +124,66 @@ class Renderer:
         self.scene.remove_node(cam_node)
 
         return image
+
+    def render_obj(self,
+                   img,
+                   mesh_file,
+                   cam,
+                   translation=[0.0, 0.0, 0.0],
+                   angle=0.0, # Rotation Angle (Degrees)
+                   axis=[1.0, 0.0, 0.0], # Rotation Axis (Right-Hand System: X points right. Y points up. Z points out.)
+                   scale=[1.0, 1.0, 1.0],
+                   color=[0.3, 1.0, 0.3]):
+        # Load mesh from file.
+        mesh = trimesh.load(mesh_file)
+
+        # Apply transformations.
+        Sx = trimesh.transformations.scale_matrix(scale[0], [1.0, 0.0, 0.0])
+        Sy = trimesh.transformations.scale_matrix(scale[1], [0.0, 1.0, 0.0])
+        Sz = trimesh.transformations.scale_matrix(scale[2], [0.0, 0.0, 1.0])
+        R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
+        T = trimesh.transformations.translation_matrix(translation)
+        mesh.apply_transform(Sx)
+        mesh.apply_transform(Sy)
+        mesh.apply_transform(Sz)
+        mesh.apply_transform(R)
+        mesh.apply_transform(T)
+
+        # Setup camera.
+        sx, sy, tx, ty = cam
+        camera = WeakPerspectiveCamera(
+            scale=[sx, sy],
+            translation=[tx, ty],
+            zfar=1000.
+        )
+
+        # Setup material.
+        material = pyrender.MetallicRoughnessMaterial(
+            metallicFactor=0.0,
+            alphaMode='OPAQUE',
+            baseColorFactor=(color[0], color[1], color[2], 1.0)
+        )
+
+        # Attach material to mesh and add it to scene.
+        mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
+        mesh_node = self.scene.add(mesh, 'mesh')
+
+        # Add camera to scene.
+        camera_pose = np.eye(4)
+        cam_node = self.scene.add(camera, pose=camera_pose)
+
+        # Render triangles or wireframe.
+        if self.wireframe:
+            render_flags = RenderFlags.RGBA | RenderFlags.ALL_WIREFRAME
+        else:
+            render_flags = RenderFlags.RGBA
+
+        rgb, _ = self.renderer.render(self.scene, flags=render_flags)
+        valid_mask = (rgb[:, :, -1] > 0)[:, :, np.newaxis]
+        output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask) * img
+        image = output_img.astype(np.uint8)
+
+        self.scene.remove_node(mesh_node)
+        self.scene.remove_node(cam_node)
+
+        return image
