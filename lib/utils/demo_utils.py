@@ -282,6 +282,10 @@ def prepare_rendering_results(vibe_results, nframes):
             frame_results[frame_id][person_id] = {
                 'verts': person_data['verts'][idx],
                 'cam': person_data['orig_cam'][idx],
+
+                # [VIBE-Object]
+                # Append the 3D joint data so that we can translate our object accordingly.
+                'joints3d': person_data['joints3d'][idx]
             }
 
     # naive depth ordering based on the scale of the weak perspective camera

@@ -162,7 +162,6 @@ def main(args):
                 batch_size, seqlen = batch.shape[:2]
                 output = model(batch)[-1]
 
-                # This is where vertices are saved. Track backwards.
                 pred_cam.append(output['theta'][:, :, :3].reshape(batch_size * seqlen, -1))
                 pred_verts.append(output['verts'].reshape(batch_size * seqlen, -1, 3))
                 pred_pose.append(output['theta'][:,:,3:75].reshape(batch_size * seqlen, -1))
@@ -170,6 +169,14 @@ def main(args):
                 pred_joints3d.append(output['kp_3d'].reshape(batch_size * seqlen, -1, 3))
                 smpl_joints2d.append(output['kp_2d'].reshape(batch_size * seqlen, -1, 2))
 
+
+            # [VIBE-Object]
+            # Memory layout of pred_joints3d: pred_joints3d[frame_idx, bone_idx, floats]
+            # The first dimension of pred_joints3d is the frame index. So if the video has 300 frames, len(pred_joints3d) == 300.
+            # The second dimension of pred_joints3d is the bone index.
+            # After testing, pred_joints3d has 49 bones, so it is using kp_utils.get_spin_joint_names().
+            # So bone 6 will be OP LElbow for example.
+            # The third dimension of pred_joints3d is 3 floats, containing the position of the joint.
 
             pred_cam = torch.cat(pred_cam, dim=0)
             pred_verts = torch.cat(pred_verts, dim=0)
@@ -219,7 +226,7 @@ def main(args):
         pred_verts = pred_verts.cpu().numpy()
         pred_pose = pred_pose.cpu().numpy()
         pred_betas = pred_betas.cpu().numpy()
-        pred_joints3d = pred_joints3d.cpu().numpy()
+        pred_joints3d = pred_joints3d.cpu().numpy() # 300 frames, 49 bones, 3 floats each. Uses spin_joint_names.
         smpl_joints2d = smpl_joints2d.cpu().numpy()
 
         # Runs 1 Euro Filter to smooth out the results
@@ -227,6 +234,9 @@ def main(args):
             min_cutoff = args.smooth_min_cutoff # 0.004
             beta = args.smooth_beta # 1.5
             print(f'Running smoothing on person {person_id}, min_cutoff: {min_cutoff}, beta: {beta}')
+
+            # [VIBE-Object]
+            # Over here, the joints are smoothed out.
             pred_verts, pred_pose, pred_joints3d = smooth_pose(pred_pose, pred_betas,
                                                                min_cutoff=min_cutoff, beta=beta)
 
@@ -242,6 +252,10 @@ def main(args):
             keypoints=smpl_joints2d,
             crop_size=224,
         )
+
+        # print("[Debug] pred_joints3d length: " + str(len(pred_joints3d)))
+        # print("[Debug] pred_joints3d[0] length: " + str(len(pred_joints3d[0])))
+        # print("[Debug] pred_joints3d[0, 0] length: " + str(len(pred_joints3d[0, 0])))
 
         output_dict = {
             'pred_cam': pred_cam,
@@ -301,6 +315,8 @@ def main(args):
             for person_id, person_data in frame_results[frame_idx].items():
                 frame_verts = person_data['verts']
                 frame_cam = person_data['cam']
+                # [VIBE-Object]
+                frame_joints3d = person_data['joints3d']
 
                 mc = mesh_color[person_id]
 
@@ -319,16 +335,17 @@ def main(args):
                     mesh_filename=mesh_filename,
                 )
                     
-                # Render Object Test Code
-                # img = renderer.render_obj(
-                #     img,
-                #     'assets/monkey.obj',
-                #     cam=frame_cam,
-                #     translation=[0.0, 0.0, 0.0],
-                #     angle=0.0, axis=[1.0, 0.0, 0.0],
-                #     scale=[1.0, 1.0, 1.0],
-                #     color=mc,
-                # )
+                # [VIBE-Object]
+                # Render Object
+                img = renderer.render_obj(
+                    img,
+                    'assets/monkey.obj',
+                    cam=frame_cam,
+                    translation=frame_joints3d[4], # Render at the wrist of the person. Get index from kp_utils.get_spin_joint_names().
+                    angle=0.0, axis=[1.0, 0.0, 0.0],
+                    scale=[0.2, 0.2, 0.2],
+                    color=[1.0, 0.0, 0.0],
+                )
 
                 if args.sideview:
                     side_img = renderer.render(

@@ -138,9 +138,9 @@ class Renderer:
         mesh = trimesh.load(mesh_file)
 
         # Apply transformations.
-        Sx = trimesh.transformations.scale_matrix(scale[0], [1.0, 0.0, 0.0])
-        Sy = trimesh.transformations.scale_matrix(scale[1], [0.0, 1.0, 0.0])
-        Sz = trimesh.transformations.scale_matrix(scale[2], [0.0, 0.0, 1.0])
+        Sx = trimesh.transformations.scale_matrix(scale[0], origin=[0,0, 0.0, 0.0], direction=[1.0, 0.0, 0.0])
+        Sy = trimesh.transformations.scale_matrix(scale[1], origin=[0,0, 0.0, 0.0], direction=[0.0, 1.0, 0.0])
+        Sz = trimesh.transformations.scale_matrix(scale[2], origin=[0,0, 0.0, 0.0], direction=[0.0, 0.0, 1.0])
         R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
         T = trimesh.transformations.translation_matrix(translation)
         mesh.apply_transform(Sx)
@@ -148,6 +148,10 @@ class Renderer:
         mesh.apply_transform(Sz)
         mesh.apply_transform(R)
         mesh.apply_transform(T)
+
+        # Harcode another rotation because the human model loaded is using a different coordinate system.
+        Rx = trimesh.transformations.rotation_matrix(math.radians(180), [1, 0, 0])
+        mesh.apply_transform(Rx)
 
         # Setup camera.
         sx, sy, tx, ty = cam
@@ -178,6 +182,8 @@ class Renderer:
         else:
             render_flags = RenderFlags.RGBA
 
+        # Combine current rendered scene with input image.
+        # Allows multiple objects to be rendered by combining their resultant output.
         rgb, _ = self.renderer.render(self.scene, flags=render_flags)
         valid_mask = (rgb[:, :, -1] > 0)[:, :, np.newaxis]
         output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask) * img
