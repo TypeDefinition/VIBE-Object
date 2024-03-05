@@ -75,8 +75,14 @@ class Renderer:
         light_pose[:3, 3] = [1, 1, 2]
         self.scene.add(light, pose=light_pose)
 
-    def render(self, img, verts, cam, angle=None, axis=None, mesh_filename=None, color=[1.0, 1.0, 0.9]):
+        # [VIBE-Object Start]
+        self.cam_node = None
+        self.object_nodes = []
+        self.human_nodes = []
+        # [VIBE-Object End]
 
+    # Original VIBE function to render a human.
+    def render(self, img, verts, cam, angle=None, axis=None, mesh_filename=None, color=[1.0, 1.0, 0.9]):
         mesh = trimesh.Trimesh(vertices=verts, faces=self.faces, process=False)
 
         Rx = trimesh.transformations.rotation_matrix(math.radians(180), [1, 0, 0])
@@ -98,7 +104,7 @@ class Renderer:
         )
 
         material = pyrender.MetallicRoughnessMaterial(
-            metallicFactor=0.0,
+            metallicFactor=0.5,
             alphaMode='OPAQUE',
             baseColorFactor=(color[0], color[1], color[2], 1.0)
         )
@@ -125,6 +131,7 @@ class Renderer:
 
         return image
 
+    # [VIBE-Object Start]
     def render_obj(self,
                    img,
                    mesh_file,
@@ -150,7 +157,7 @@ class Renderer:
         mesh.apply_transform(T)
 
         # Harcode another rotation because the human model loaded is using a different coordinate system.
-        Rx = trimesh.transformations.rotation_matrix(math.radians(180), [1, 0, 0])
+        Rx = trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0])
         mesh.apply_transform(Rx)
 
         # Setup camera.
@@ -163,7 +170,7 @@ class Renderer:
 
         # Setup material.
         material = pyrender.MetallicRoughnessMaterial(
-            metallicFactor=0.0,
+            metallicFactor=0.5,
             alphaMode='OPAQUE',
             baseColorFactor=(color[0], color[1], color[2], 1.0)
         )
@@ -193,3 +200,94 @@ class Renderer:
         self.scene.remove_node(cam_node)
 
         return image
+
+    def push_cam(self, cam):
+        sx, sy, tx, ty = cam
+        camera = WeakPerspectiveCamera(
+            scale=[sx, sy],
+            translation=[tx, ty],
+            zfar=1000.
+        )
+        camera_pose = np.eye(4)
+        self.cam_node = self.scene.add(camera, pose=camera_pose)
+
+    def push_human(self, verts, color=[1.0, 1.0, 0.9]):
+        # Build mesh from vertices.
+        mesh = trimesh.Trimesh(vertices=verts, faces=self.faces, process=False)
+
+        # Apply transformations.
+        Rx = trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]) # Harcode another rotation because the human model loaded is using a different coordinate system.
+        mesh.apply_transform(Rx)
+
+        # Material
+        material = pyrender.MetallicRoughnessMaterial(
+            metallicFactor=0.5,
+            alphaMode='OPAQUE',
+            baseColorFactor=(color[0], color[1], color[2], 1.0)
+        )
+
+        mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
+        self.human_nodes.append(self.scene.add(mesh))
+
+    def push_obj(self,
+                   mesh_file,
+                   translation=[0.0, 0.0, 0.0],
+                   angle=0.0, # Rotation Angle (Degrees)
+                   axis=[1.0, 0.0, 0.0], # Rotation Axis (Right-Hand System: X points right. Y points up. Z points out.)
+                   scale=[1.0, 1.0, 1.0],
+                   color=[0.3, 1.0, 0.3]):
+        # Load mesh from file.
+        mesh = trimesh.load(mesh_file)
+
+        # Apply transformations.
+        Sx = trimesh.transformations.scale_matrix(scale[0], origin=[0,0, 0.0, 0.0], direction=[1.0, 0.0, 0.0])
+        Sy = trimesh.transformations.scale_matrix(scale[1], origin=[0,0, 0.0, 0.0], direction=[0.0, 1.0, 0.0])
+        Sz = trimesh.transformations.scale_matrix(scale[2], origin=[0,0, 0.0, 0.0], direction=[0.0, 0.0, 1.0])
+        R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
+        T = trimesh.transformations.translation_matrix(translation)
+        Rx = trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]) # Harcode another rotation because the human model loaded is using a different coordinate system.
+        mesh.apply_transform(Sx)
+        mesh.apply_transform(Sy)
+        mesh.apply_transform(Sz)
+        mesh.apply_transform(R)
+        mesh.apply_transform(T)
+        mesh.apply_transform(Rx)
+
+        # Setup material.
+        material = pyrender.MetallicRoughnessMaterial(
+            metallicFactor=0.5,
+            alphaMode='OPAQUE',
+            baseColorFactor=(color[0], color[1], color[2], 1.0)
+        )
+
+        # Attach material to mesh and add it to scene.
+        mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
+        self.object_nodes.append(self.scene.add(mesh))
+
+    def pop_and_render(self, img):
+        # Render triangles or wireframe.
+        if self.wireframe:
+            render_flags = RenderFlags.RGBA | RenderFlags.ALL_WIREFRAME
+        else:
+            render_flags = RenderFlags.RGBA
+
+        # Combine current rendered scene with input image.
+        # Allows multiple objects to be rendered by combining their resultant output.
+        rgb, _ = self.renderer.render(self.scene, flags=render_flags)
+        valid_mask = (rgb[:, :, -1] > 0)[:, :, np.newaxis]
+        output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask) * img
+        image = output_img.astype(np.uint8)
+
+        # Remove nodes
+        self.scene.remove_node(self.cam_node)
+        for n in self.object_nodes:
+            self.scene.remove_node(n)
+        for n in self.human_nodes:
+            self.scene.remove_node(n)
+        
+        self.cam_node = None
+        self.object_nodes.clear()
+        self.human_nodes.clear()
+
+        return image
+    # [VIBE-Object End]

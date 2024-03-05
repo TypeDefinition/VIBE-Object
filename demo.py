@@ -47,6 +47,11 @@ from lib.utils.demo_utils import (
     download_ckpt,
 )
 
+# [VIBE-Object]
+import math
+from lib.vibe_obj.utils import *
+from lib.vibe_obj.quat import Quat
+
 MIN_NUM_FRAMES = 25
 
 
@@ -169,15 +174,6 @@ def main(args):
                 pred_joints3d.append(output['kp_3d'].reshape(batch_size * seqlen, -1, 3))
                 smpl_joints2d.append(output['kp_2d'].reshape(batch_size * seqlen, -1, 2))
 
-
-            # [VIBE-Object]
-            # Memory layout of pred_joints3d: pred_joints3d[frame_idx, bone_idx, floats]
-            # The first dimension of pred_joints3d is the frame index. So if the video has 300 frames, len(pred_joints3d) == 300.
-            # The second dimension of pred_joints3d is the bone index.
-            # After testing, pred_joints3d has 49 bones, so it is using kp_utils.get_spin_joint_names().
-            # So bone 6 will be OP LElbow for example.
-            # The third dimension of pred_joints3d is 3 floats, containing the position of the joint.
-
             pred_cam = torch.cat(pred_cam, dim=0)
             pred_verts = torch.cat(pred_verts, dim=0)
             pred_pose = torch.cat(pred_pose, dim=0)
@@ -253,10 +249,6 @@ def main(args):
             crop_size=224,
         )
 
-        # print("[Debug] pred_joints3d length: " + str(len(pred_joints3d)))
-        # print("[Debug] pred_joints3d[0] length: " + str(len(pred_joints3d[0])))
-        # print("[Debug] pred_joints3d[0, 0] length: " + str(len(pred_joints3d[0, 0])))
-
         output_dict = {
             'pred_cam': pred_cam,
             'orig_cam': orig_cam,
@@ -271,6 +263,20 @@ def main(args):
         }
 
         vibe_results[person_id] = output_dict
+
+        # [VIBE-Object]
+        # Memory layout of pred_joints3d: pred_joints3d[frame_idx, bone_idx, floats]
+        # The first dimension of pred_joints3d is the frame index. So if the video has 300 frames, len(pred_joints3d) == 300.
+        # The second dimension of pred_joints3d is the bone index.
+        # After testing, pred_joints3d has 49 bones, so it is using kp_utils.get_spin_joint_names().
+        # So bone 6 will be OP LElbow for example.
+        # The third dimension of pred_joints3d is 3 floats, containing the position of the joint.
+
+        # Memory layout of pred_pose: pred_pose[frame_idx, floats]
+        # The first dimension of pred_pose is the frame index. So if the video has 300 frames, len(pred_joints3d) == 300.
+        # The second dimension is 72 floats. Every 3 float represents the axis-angle rotation of the 24 bones.
+        # The 3 floats represent the axis, and the magnitude of the axis is the angle of rotation in radians.
+        # The 24 bones are specified in fbx_output.bone_name_from_index.
 
     del model
 
@@ -309,14 +315,16 @@ def main(args):
             img_fname = image_file_names[frame_idx]
             img = cv2.imread(img_fname)
 
-            if args.sideview:
-                side_img = np.zeros_like(img)
+            # if args.sideview:
+            #     side_img = np.zeros_like(img)
 
             for person_id, person_data in frame_results[frame_idx].items():
                 frame_verts = person_data['verts']
                 frame_cam = person_data['cam']
-                # [VIBE-Object]
+                # [VIBE-Object Start]
                 frame_joints3d = person_data['joints3d']
+                frame_pose = person_data['pose']
+                # [VIBE-Object End]
 
                 mc = mesh_color[person_id]
 
@@ -327,38 +335,53 @@ def main(args):
                     os.makedirs(mesh_folder, exist_ok=True)
                     mesh_filename = os.path.join(mesh_folder, f'{frame_idx:06d}.obj')
 
-                img = renderer.render(
-                    img,
-                    frame_verts,
-                    cam=frame_cam,
-                    color=mc,
-                    mesh_filename=mesh_filename,
-                )
+                # img = renderer.render(
+                #     img,
+                #     verts=frame_verts,
+                #     cam=frame_cam,
+                #     color=mc,
+                #     mesh_filename=mesh_filename,
+                # )
                     
-                # [VIBE-Object]
-                # Render Object
-                img = renderer.render_obj(
-                    img,
+                # if args.sideview:
+                #     side_img = renderer.render(
+                #         side_img,
+                #         frame_verts,
+                #         cam=frame_cam,
+                #         color=mc,
+                #         angle=270,
+                #         axis=[0,1,0],
+                #     )
+                    
+                # if args.sideview:
+                # img = np.concatenate([img, side_img], axis=1)
+
+                # [VIBE-Object Start]
+                # Add camera to scene.
+                renderer.push_cam(frame_cam)
+
+                # Add human to scene.
+                renderer.push_human(verts=frame_verts, color=mc)
+                
+                # Add object to scene.
+                axis_angle = get_left_wrist_rotation(frame_pose).to_axis_angle()
+                axis = axis_angle[0]
+                angle = axis_angle[1] * (180.0/math.pi)
+                renderer.push_obj(
                     'assets/monkey.obj',
-                    cam=frame_cam,
-                    translation=frame_joints3d[4], # Render at the wrist of the person. Get index from kp_utils.get_spin_joint_names().
-                    angle=0.0, axis=[1.0, 0.0, 0.0],
+                    translation=get_left_wrist_translation(frame_joints3d), # Render at the wrist of the person.
+                    angle=angle,
+                    axis=[axis.x, axis.y, axis.z],
                     scale=[0.2, 0.2, 0.2],
                     color=[1.0, 0.0, 0.0],
                 )
+                print('Combined Rotation')
+                print('Axis: (' + str(round(axis.x, 5)) + ", " + str(round(axis.y, 5)) + ", " + str(round(axis.z, 5)) + ")")
+                print('Angle: ' + str(round(angle, 5)))
 
-                if args.sideview:
-                    side_img = renderer.render(
-                        side_img,
-                        frame_verts,
-                        cam=frame_cam,
-                        color=mc,
-                        angle=270,
-                        axis=[0,1,0],
-                    )
-
-            if args.sideview:
-                img = np.concatenate([img, side_img], axis=1)
+                # Render scene.
+                img = renderer.pop_and_render(img)
+                # [VIBE-Object End]
 
             cv2.imwrite(os.path.join(output_img_folder, f'{frame_idx:06d}.png'), img)
 
@@ -421,8 +444,9 @@ if __name__ == '__main__':
     parser.add_argument('--wireframe', action='store_true',
                         help='render all meshes as wireframes.')
 
-    parser.add_argument('--sideview', action='store_true',
-                        help='render meshes from alternate viewpoint.')
+    # Remove side view because I don't feel like supporting it.
+    # parser.add_argument('--sideview', action='store_true',
+    #                     help='render meshes from alternate viewpoint.')
 
     parser.add_argument('--save_obj', action='store_true',
                         help='save results as .obj files.')
