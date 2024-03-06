@@ -50,7 +50,6 @@ from lib.utils.demo_utils import (
 # [VIBE-Object]
 import math
 from lib.vibe_obj.utils import *
-from lib.vibe_obj.quat import Quat
 
 MIN_NUM_FRAMES = 25
 
@@ -364,7 +363,7 @@ def main(args):
                 renderer.push_human(verts=frame_verts, color=mc)
                 
                 # Add object to scene.
-                axis_angle = get_left_wrist_rotation(frame_pose).to_axis_angle()
+                axis_angle = get_left_hand_rotation(frame_pose).to_axis_angle()
                 axis = axis_angle[0]
                 angle = axis_angle[1] * (180.0/math.pi)
                 renderer.push_obj(
@@ -375,9 +374,6 @@ def main(args):
                     scale=[0.2, 0.2, 0.2],
                     color=[1.0, 0.0, 0.0],
                 )
-                print('Combined Rotation')
-                print('Axis: (' + str(round(axis.x, 5)) + ", " + str(round(axis.y, 5)) + ", " + str(round(axis.z, 5)) + ")")
-                print('Angle: ' + str(round(angle, 5)))
 
                 # Render scene.
                 img = renderer.pop_and_render(img)
