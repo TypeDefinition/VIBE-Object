@@ -52,10 +52,6 @@ class VidSMPLParamCreator:
         self.model.eval()
         print(f'Loaded pretrained weights from \"{pretrained_file}\"')
 
-    
-    def __del__(self):
-        del self.model
-
     def processPeopleInVid(self, _people, _outputPath):
         vibe_results = {}
         for person in _people:

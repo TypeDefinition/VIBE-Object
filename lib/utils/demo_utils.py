@@ -182,7 +182,7 @@ def trim_videos(filename, start_time, end_time, output_filename):
 
 def video_to_images(vid_file, img_folder=None, return_info=False):
     if img_folder is None:
-        img_folder = osp.join('/tmp', osp.basename(vid_file).replace('.', '_'))
+        img_folder = osp.join('temp', osp.basename(vid_file).replace('.', '_'))
 
     os.makedirs(img_folder, exist_ok=True)
 
@@ -207,24 +207,34 @@ def video_to_images(vid_file, img_folder=None, return_info=False):
 def download_url(url, outdir):
     print(f'Downloading files from {url}')
     cmd = ['wget', '-c', url, '-P', outdir]
-    subprocess.call(cmd)
+    try:
+        subprocess.check_call(cmd)
+        print(f'Download completed successfully. File saved to: {outdir}')
+    except subprocess.CalledProcessError as e:
+        print(f'Error downloading file: {e}')
+    except Exception as e:
+        print(f'An error occurred: {e}')
+    # subprocess.call(cmd)
 
 
 def download_ckpt(outdir='data/vibe_data', use_3dpw=False):
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    outdir = os.path.join(base_dir, outdir)
+    outdir =  os.path.normpath(outdir)
     os.makedirs(outdir, exist_ok=True)
 
     if use_3dpw:
-        ckpt_file = 'data/vibe_data/vibe_model_w_3dpw.pth.tar'
+        ckpt_file = os.path.join(outdir, 'vibe_model_w_3dpw.pth.tar')
         url = 'https://www.dropbox.com/s/41ozgqorcp095ja/vibe_model_w_3dpw.pth.tar'
         if not os.path.isfile(ckpt_file):
             download_url(url=url, outdir=outdir)
     else:
-        ckpt_file = 'data/vibe_data/vibe_model_wo_3dpw.pth.tar'
+        ckpt_file = os.path.join(outdir, 'vibe_model_wo_3dpw.pth.tar')
         url = 'https://www.dropbox.com/s/amj2p8bmf6g56k6/vibe_model_wo_3dpw.pth.tar'
         if not os.path.isfile(ckpt_file):
             download_url(url=url, outdir=outdir)
 
-    return ckpt_file
+    return os.path.normpath(ckpt_file)
 
 
 def images_to_video(img_folder, output_vid_file):
