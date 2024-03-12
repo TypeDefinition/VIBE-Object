@@ -259,6 +259,9 @@ def convert_crop_cam_to_orig_img(cam, bbox, img_width, img_height):
     :param img_height (int): original image height
     :return:
     '''
+    if not isinstance(bbox, np.ndarray):
+        bbox = np.array(bbox)
+
     cx, cy, h = bbox[:,0], bbox[:,1], bbox[:,2]
     hw, hh = img_width / 2., img_height / 2.
     sx = cam[:,0] * (1. / (img_width / h))
@@ -271,6 +274,9 @@ def convert_crop_cam_to_orig_img(cam, bbox, img_width, img_height):
           
 def convert_crop_coords_to_orig_img(bbox, keypoints, crop_size):
     # import IPython; IPython.embed(); exit()
+    if not isinstance(bbox, np.ndarray):
+        bbox = np.array(bbox)
+        
     cx, cy, h = bbox[:, 0], bbox[:, 1], bbox[:, 2]
 
     # unnormalize to crop coords
