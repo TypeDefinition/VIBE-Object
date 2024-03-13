@@ -52,6 +52,31 @@ class VidSMPLParamCreator:
         self.model.eval()
         print(f'Loaded pretrained weights from \"{pretrained_file}\"')
 
+    '''
+        Arguments:
+            _people: [{
+                bboxes = [[cx, cy, h, w] ...]
+                joints2D = []
+                frames = [frame number the person appears in]
+                id = person identification number
+            }...] Array of people objects
+            _outputPath: file path to dump the pkl file
+
+        return:
+            vibe_results (results of pkl file): dictionary 
+                {person id: {
+                    'pred_cam': pred_cam,
+                    'orig_cam': orig_cam,
+                    'verts': pred_verts,
+                    'pose': pred_pose,
+                    'betas': pred_betas,
+                    'joints3d': pred_joints3d,
+                    'joints2d': _joints2D,
+                    'joints2d_img_coord': joints2d_img_coord,
+                    'bboxes': bboxes,
+                    'frame_ids': frames,
+                }...}
+    '''
     def processPeopleInVid(self, _people, _outputPath):
         vibe_results = {}
         for person in _people:
@@ -65,6 +90,8 @@ class VidSMPLParamCreator:
         # print(f'Saving output results to \"{os.path.join(output_path, "vibe_output.pkl")}\".')
 
         joblib.dump(vibe_results, os.path.join(_outputPath, "vibe_output.pkl"))
+
+        return vibe_results
     
 
     '''

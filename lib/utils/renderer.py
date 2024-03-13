@@ -48,7 +48,7 @@ class WeakPerspectiveCamera(pyrender.Camera):
 
 
 class Renderer:
-    def __init__(self, resolution=(224,224), orig_img=False, wireframe=False):
+    def __init__(self, resolution=(224,224), orig_img=False, wireframe=False, renderOnWhite = False):
         self.resolution = resolution
 
         self.faces = get_smpl_faces()
@@ -80,6 +80,9 @@ class Renderer:
         self.object_nodes = []
         self.human_nodes = []
         # [VIBE-Object End]
+
+        if renderOnWhite:
+            self.whiteBackground = np.full((self.resolution[0], self.resolution[1], 3), 255, dtype=np.uint8)
 
     # Original VIBE function to render a human.
     def render(self, img, verts, cam, angle=None, axis=None, mesh_filename=None, color=[1.0, 1.0, 0.9]):
@@ -264,12 +267,16 @@ class Renderer:
         mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
         self.object_nodes.append(self.scene.add(mesh))
 
-    def pop_and_render(self, img):
+    def pop_and_render(self, img = None):
         # Render triangles or wireframe.
         if self.wireframe:
             render_flags = RenderFlags.RGBA | RenderFlags.ALL_WIREFRAME
         else:
             render_flags = RenderFlags.RGBA
+
+        # background will just be white
+        if img is None:
+            img = self.whiteBackground
 
         # Combine current rendered scene with input image.
         # Allows multiple objects to be rendered by combining their resultant output.
