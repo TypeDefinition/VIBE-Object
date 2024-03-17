@@ -77,12 +77,13 @@ class Renderer:
 
         # [VIBE-Object Start]
         self.cam_node = None
+        self.camera_pose = np.eye(4)
         self.object_nodes = []
         self.human_nodes = []
         # [VIBE-Object End]
 
         if renderOnWhite:
-            self.whiteBackground = np.full((self.resolution[0], self.resolution[1], 3), 255, dtype=np.uint8)
+            self.whiteBackground = np.full((self.resolution[1], self.resolution[0], 3), 255, dtype=np.uint8)
 
     # Original VIBE function to render a human.
     def render(self, img, verts, cam, angle=None, axis=None, mesh_filename=None, color=[1.0, 1.0, 0.9]):
@@ -116,8 +117,8 @@ class Renderer:
 
         mesh_node = self.scene.add(mesh, 'mesh')
 
-        camera_pose = np.eye(4)
-        cam_node = self.scene.add(camera, pose=camera_pose)
+        self.camera_pose = np.eye(4)
+        cam_node = self.scene.add(camera, pose=self.camera_pose)
 
         if self.wireframe:
             render_flags = RenderFlags.RGBA | RenderFlags.ALL_WIREFRAME
@@ -183,8 +184,8 @@ class Renderer:
         mesh_node = self.scene.add(mesh, 'mesh')
 
         # Add camera to scene.
-        camera_pose = np.eye(4)
-        cam_node = self.scene.add(camera, pose=camera_pose)
+        self.camera_pose = np.eye(4)
+        cam_node = self.scene.add(camera, pose=self.camera_pose)
 
         # Render triangles or wireframe.
         if self.wireframe:
@@ -211,8 +212,36 @@ class Renderer:
             translation=[tx, ty],
             zfar=1000.
         )
-        camera_pose = np.eye(4)
-        self.cam_node = self.scene.add(camera, pose=camera_pose)
+        self.camera_pose = np.eye(4)
+        self.cam_node = self.scene.add(camera, pose=self.camera_pose)
+
+    def push_default_cam(self):
+        camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
+        
+        self.camera_pose = np.eye(4)
+        self.cam_node = self.scene.add(camera, pose=self.camera_pose)
+        
+    def screenspace_to_worldspace(self, screenXCoords, screenYCoords):
+        print(self.resolution)
+
+        projMatrix = self.cam_node.camera.get_projection_matrix(self.resolution[0], self.resolution[1]) # 4 x 4
+
+        # make to view portspace 0 - 1 and invert y axis
+        # convert from viewport to ndc
+        ndc_coords = np.array([
+            screenXCoords / self.resolution[0] * 2 - 1,
+            screenYCoords / self.resolution[1] * 2 - 1,
+            0,
+            1
+        ])
+        print(ndc_coords)
+
+        # invert (projection matrix * view matrix)
+        windowSpcToWorldSpc = np.linalg.inv(projMatrix)
+
+        # world space = view matrix inverse * projection matrix inverse * NDC
+        return windowSpcToWorldSpc @ ndc_coords
+
 
     def push_human(self, verts, color=[1.0, 1.0, 0.9]):
         # Build mesh from vertices.
@@ -246,9 +275,16 @@ class Renderer:
         Sx = trimesh.transformations.scale_matrix(scale[0], origin=[0,0, 0.0, 0.0], direction=[1.0, 0.0, 0.0])
         Sy = trimesh.transformations.scale_matrix(scale[1], origin=[0,0, 0.0, 0.0], direction=[0.0, 1.0, 0.0])
         Sz = trimesh.transformations.scale_matrix(scale[2], origin=[0,0, 0.0, 0.0], direction=[0.0, 0.0, 1.0])
-        R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
+        
+        # prevent divide by zero error when angle is 0
+        if angle == 0:
+            R = trimesh.transformations.identity_matrix()
+        else:
+            R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
+
         T = trimesh.transformations.translation_matrix(translation)
         Rx = trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]) # Harcode another rotation because the human model loaded is using a different coordinate system.
+        
         mesh.apply_transform(Sx)
         mesh.apply_transform(Sy)
         mesh.apply_transform(Sz)
