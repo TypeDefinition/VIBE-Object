@@ -215,6 +215,11 @@ class Renderer:
         self.camera_pose = np.eye(4)
         self.cam_node = self.scene.add(camera, pose=self.camera_pose)
 
+    def push_obj_cam(self, yfov):
+        camera = pyrender.PerspectiveCamera(yfov)
+        self.camera_pose = np.eye(4)
+        self.cam_node = self.scene.add(camera, pose=self.camera_pose)
+
     def push_default_cam(self):
         camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
         
