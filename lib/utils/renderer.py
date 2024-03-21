@@ -135,77 +135,7 @@ class Renderer:
 
         return image
 
-    # [VIBE-Object Start]
-    def render_obj(self,
-                   img,
-                   mesh_file,
-                   cam,
-                   translation=[0.0, 0.0, 0.0],
-                   angle=0.0, # Rotation Angle (Degrees)
-                   axis=[1.0, 0.0, 0.0], # Rotation Axis (Right-Hand System: X points right. Y points up. Z points out.)
-                   scale=[1.0, 1.0, 1.0],
-                   color=[0.3, 1.0, 0.3]):
-        # Load mesh from file.
-        mesh = trimesh.load(mesh_file)
-
-        # Apply transformations.
-        Sx = trimesh.transformations.scale_matrix(scale[0], origin=[0,0, 0.0, 0.0], direction=[1.0, 0.0, 0.0])
-        Sy = trimesh.transformations.scale_matrix(scale[1], origin=[0,0, 0.0, 0.0], direction=[0.0, 1.0, 0.0])
-        Sz = trimesh.transformations.scale_matrix(scale[2], origin=[0,0, 0.0, 0.0], direction=[0.0, 0.0, 1.0])
-        R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
-        T = trimesh.transformations.translation_matrix(translation)
-        mesh.apply_transform(Sx)
-        mesh.apply_transform(Sy)
-        mesh.apply_transform(Sz)
-        mesh.apply_transform(R)
-        mesh.apply_transform(T)
-
-        # Harcode another rotation because the human model loaded is using a different coordinate system.
-        Rx = trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0])
-        mesh.apply_transform(Rx)
-
-        # Setup camera.
-        sx, sy, tx, ty = cam
-        camera = WeakPerspectiveCamera(
-            scale=[sx, sy],
-            translation=[tx, ty],
-            zfar=1000.
-        )
-
-        # Setup material.
-        material = pyrender.MetallicRoughnessMaterial(
-            metallicFactor=0.5,
-            alphaMode='OPAQUE',
-            baseColorFactor=(color[0], color[1], color[2], 1.0)
-        )
-
-        # Attach material to mesh and add it to scene.
-        mesh = pyrender.Mesh.from_trimesh(mesh, material=material)
-        mesh_node = self.scene.add(mesh, 'mesh')
-
-        # Add camera to scene.
-        self.camera_pose = np.eye(4)
-        cam_node = self.scene.add(camera, pose=self.camera_pose)
-
-        # Render triangles or wireframe.
-        if self.wireframe:
-            render_flags = RenderFlags.RGBA | RenderFlags.ALL_WIREFRAME
-        else:
-            render_flags = RenderFlags.RGBA
-
-        # Combine current rendered scene with input image.
-        # Allows multiple objects to be rendered by combining their resultant output.
-        rgb, _ = self.renderer.render(self.scene, flags=render_flags)
-        valid_mask = (rgb[:, :, -1] > 0)[:, :, np.newaxis]
-        output_img = rgb[:, :, :-1] * valid_mask + (1 - valid_mask) * img
-        image = output_img.astype(np.uint8)
-
-        self.scene.remove_node(mesh_node)
-        self.scene.remove_node(cam_node)
-
-        return image
-
-    def push_cam(self, cam):
+    def push_weak_cam(self, cam):
         sx, sy, tx, ty = cam
         camera = WeakPerspectiveCamera(
             scale=[sx, sy],
@@ -215,46 +145,21 @@ class Renderer:
         self.camera_pose = np.eye(4)
         self.cam_node = self.scene.add(camera, pose=self.camera_pose)
 
-    def push_obj_cam(self, yfov):
-        camera = pyrender.PerspectiveCamera(yfov)
-        self.camera_pose = np.eye(4)
-        self.cam_node = self.scene.add(camera, pose=self.camera_pose)
-
-    def push_default_cam(self):
-        camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
-        
+    def push_persp_cam(self, yfov):
+        camera = pyrender.PerspectiveCamera(yfov, 0.1, 1000.0)
         self.camera_pose = np.eye(4)
         self.cam_node = self.scene.add(camera, pose=self.camera_pose)
         
-    def screenspace_to_worldspace(self, screenXCoords, screenYCoords):
-        print(self.resolution)
-
-        projMatrix = self.cam_node.camera.get_projection_matrix(self.resolution[0], self.resolution[1]) # 4 x 4
-
-        # make to view portspace 0 - 1 and invert y axis
-        # convert from viewport to ndc
-        ndc_coords = np.array([
-            screenXCoords / self.resolution[0] * 2 - 1,
-            screenYCoords / self.resolution[1] * 2 - 1,
-            0,
-            1
-        ])
-        print(ndc_coords)
-
-        # invert (projection matrix * view matrix)
-        windowSpcToWorldSpc = np.linalg.inv(projMatrix)
-
-        # world space = view matrix inverse * projection matrix inverse * NDC
-        return windowSpcToWorldSpc @ ndc_coords
-
-
-    def push_human(self, verts, color=[1.0, 1.0, 0.9]):
+    def push_human(self, verts, color=[1.0, 1.0, 0.9], translation=[0.0, 0.0, 0.0]):
         # Build mesh from vertices.
         mesh = trimesh.Trimesh(vertices=verts, faces=self.faces, process=False)
 
-        # Apply transformations.
         Rx = trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]) # Harcode another rotation because the human model loaded is using a different coordinate system.
+        T = trimesh.transformations.translation_matrix(translation)
+
+        # Apply transformations.
         mesh.apply_transform(Rx)
+        mesh.apply_transform(T)
 
         # Material
         material = pyrender.MetallicRoughnessMaterial(
@@ -288,14 +193,12 @@ class Renderer:
             R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
 
         T = trimesh.transformations.translation_matrix(translation)
-        Rx = trimesh.transformations.rotation_matrix(math.pi, [1, 0, 0]) # Harcode another rotation because the human model loaded is using a different coordinate system.
         
         mesh.apply_transform(Sx)
         mesh.apply_transform(Sy)
         mesh.apply_transform(Sz)
         mesh.apply_transform(R)
         mesh.apply_transform(T)
-        mesh.apply_transform(Rx)
 
         # Setup material.
         material = pyrender.MetallicRoughnessMaterial(
