@@ -696,6 +696,35 @@ def get_smpl_joint_names():
         'rightHandIndex1', # 23
     ]
 
+'''
+    Notes:
+        SMPL have some things that cannot be mapped
+            - spine
+            - spine1
+            - leftHandIndex1
+            - rightHandIndex1
+'''
+def map_spin_to_smpl():
+    return {
+        8 : 0, # OP MidHip to hips
+        1: 9, # OP Neck to spine2
+        0: 12, # OP Nose to neck
+        12: 1, # OP LHip to leftUpLeg
+        13: 4, # OP LKnee to leftLeg
+        14: 7,  # OP LAnkle to leftFoot
+        19: 10, # OP LBigToe to leftToeBase
+        9: 2, # OP RHip to rightUpLeg
+        10:5, # OP RKnee to rightLeg
+        11:8, # OP RAnkle to rightFoot
+        22:11, # OP RBigToe to rightToeBase
+        2: 17, # OP RShoulder to rightArm
+        3: 19, # OP RElbow to rightForeArm
+        4: 21, # OP RWrist to rightHand
+        5: 16, # OP LShoulder to leftArm
+        6:18, # OP LElbow to leftForeArm
+        7: 20 # OP LWrist to leftHand
+    }
+
 def get_smpl_skeleton():
     return np.array(
         [
