@@ -78,6 +78,7 @@ class Renderer:
         # [VIBE-Object Start]
         self.cam_node = None
         self.camera_pose = np.eye(4)
+        self.fov = 0.0
         self.object_nodes = []
         self.human_nodes = []
         # [VIBE-Object End]
@@ -146,6 +147,7 @@ class Renderer:
         self.cam_node = self.scene.add(camera, pose=self.camera_pose)
 
     def push_persp_cam(self, yfov):
+        self.fov = yfov
         camera = pyrender.PerspectiveCamera(yfov, 0.1, 1000.0)
         self.camera_pose = np.eye(4)
         self.cam_node = self.scene.add(camera, pose=self.camera_pose)
@@ -241,4 +243,17 @@ class Renderer:
         self.human_nodes.clear()
 
         return image
+    
+    def screenspace_to_worldspace(self, screenX, screenY, _posZ = 1.0):
+            # Map the screen coordinate to NDC, which is [-1, 1].
+            aspect_ratio = self.resolution[0]/self.resolution[1]
+
+            ndc_x = -(screenX / self.resolution[0] * 2.0 - 1.0)
+            ndc_y = screenY / self.resolution[1] * 2.0 - 1.0
+
+            # Convert from NDC to world coordinate.
+            obj_x = ndc_x * _posZ * math.tan(0.5 * self.fov) * aspect_ratio
+            obj_y = ndc_y * _posZ * math.tan(0.5 * self.fov)
+
+            return [obj_x, obj_y, _posZ]
     # [VIBE-Object End]
