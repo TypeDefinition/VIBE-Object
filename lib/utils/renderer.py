@@ -175,6 +175,7 @@ class Renderer:
 
     def push_obj(self,
                    mesh_file,
+                   translation_offset = [0.0, 0.0, 0.0],
                    translation=[0.0, 0.0, 0.0],
                    angle=0.0, # Rotation Angle (Degrees)
                    axis=[1.0, 0.0, 0.0], # Rotation Axis (Right-Hand System: X points right. Y points up. Z points out.)
@@ -182,6 +183,8 @@ class Renderer:
                    color=[0.3, 1.0, 0.3]):
         # Load mesh from file.
         mesh = trimesh.load(mesh_file)
+
+        T_Offset = trimesh.transformations.translation_matrix(translation_offset)
 
         # Apply transformations.
         Sx = trimesh.transformations.scale_matrix(scale[0], origin=[0,0, 0.0, 0.0], direction=[1.0, 0.0, 0.0])
@@ -196,6 +199,7 @@ class Renderer:
 
         T = trimesh.transformations.translation_matrix(translation)
         
+        mesh.apply_transform(T_Offset)
         mesh.apply_transform(Sx)
         mesh.apply_transform(Sy)
         mesh.apply_transform(Sz)
