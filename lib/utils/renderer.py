@@ -199,10 +199,10 @@ class Renderer:
 
         T = trimesh.transformations.translation_matrix(translation)
         
-        mesh.apply_transform(T_Offset)
         mesh.apply_transform(Sx)
         mesh.apply_transform(Sy)
         mesh.apply_transform(Sz)
+        mesh.apply_transform(T_Offset)
         mesh.apply_transform(R)
         mesh.apply_transform(T)
 
