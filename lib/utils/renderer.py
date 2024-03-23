@@ -248,16 +248,16 @@ class Renderer:
 
         return image
     
-    def screenspace_to_worldspace(self, screenX, screenY, _posZ = 1.0):
+    def screenspace_to_worldspace(self, ss_pos_x, ss_pos_y, ws_pos_z = 1.0):
             # Map the screen coordinate to NDC, which is [-1, 1].
             aspect_ratio = self.resolution[0]/self.resolution[1]
 
-            ndc_x = -(screenX / self.resolution[0] * 2.0 - 1.0)
-            ndc_y = screenY / self.resolution[1] * 2.0 - 1.0
+            ndc_x = -(ss_pos_x / self.resolution[0] * 2.0 - 1.0)
+            ndc_y = ss_pos_y / self.resolution[1] * 2.0 - 1.0
 
             # Convert from NDC to world coordinate.
-            obj_x = ndc_x * _posZ * math.tan(0.5 * self.fov) * aspect_ratio
-            obj_y = ndc_y * _posZ * math.tan(0.5 * self.fov)
+            ws_pos_x = ndc_x * ws_pos_z * math.tan(0.5 * self.fov) * aspect_ratio
+            ws_pos_y = ndc_y * ws_pos_z * math.tan(0.5 * self.fov)
 
-            return [obj_x, obj_y, _posZ]
+            return [ws_pos_x, ws_pos_y, ws_pos_z]
     # [VIBE-Object End]
