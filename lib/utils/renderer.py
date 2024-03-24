@@ -146,10 +146,10 @@ class Renderer:
         self.camera_pose = np.eye(4)
         self.cam_node = self.scene.add(camera, pose=self.camera_pose)
 
-    def push_persp_cam(self, yfov):
+    def push_persp_cam(self, yfov, cam_pose=np.eye(4)):
         self.fov = yfov
         camera = pyrender.PerspectiveCamera(yfov, 0.1, 1000.0)
-        self.camera_pose = np.eye(4)
+        self.camera_pose = cam_pose
         self.cam_node = self.scene.add(camera, pose=self.camera_pose)
         
     def push_human(self, verts, color=[1.0, 1.0, 0.9], translation=[0.0, 0.0, 0.0]):
