@@ -195,7 +195,7 @@ class Renderer:
         if angle == 0:
             R = trimesh.transformations.identity_matrix()
         else:
-            R = trimesh.transformations.rotation_matrix(math.radians(angle), axis)
+            R = trimesh.transformations.rotation_matrix(angle, axis)
 
         T = trimesh.transformations.translation_matrix(translation)
         
