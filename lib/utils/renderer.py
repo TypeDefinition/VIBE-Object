@@ -177,7 +177,7 @@ class Renderer:
                    mesh_file,
                    translation_offset = [0.0, 0.0, 0.0],
                    translation=[0.0, 0.0, 0.0],
-                   angle=0.0, # Rotation Angle (Degrees)
+                   angle=0.0, # Rotation Angle (Radians)
                    axis=[1.0, 0.0, 0.0], # Rotation Axis (Right-Hand System: X points right. Y points up. Z points out.)
                    scale=[1.0, 1.0, 1.0],
                    color=[0.3, 1.0, 0.3]):
