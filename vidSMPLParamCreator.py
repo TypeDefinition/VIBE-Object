@@ -82,13 +82,6 @@ class VidSMPLParamCreator:
         for person in _people:
             vibe_results[person.id] = self.createVidPersonParams(person.bboxes, person.joints2D, person.frames)
     
-        # print(f'VIBE FPS: {fps:.2f}')
-        # total_time = time.time() - total_time
-        # print(f'Total time spent: {total_time:.2f} seconds (including model loading time).')
-        # print(f'Total FPS (including model loading time): {num_frames / total_time:.2f}.')
-
-        # print(f'Saving output results to \"{os.path.join(output_path, "vibe_output.pkl")}\".')
-
         joblib.dump(vibe_results, os.path.join(_outputPath, "vibe_output.pkl"))
 
         return vibe_results
@@ -165,6 +158,9 @@ class VidSMPLParamCreator:
 
             # update the parameters after refinement
             print(f'Update ratio after Temporal SMPLify: {update.sum()} / {norm_joints2d.shape[0]}')
+            if self.vibeConfigs["trackViaPose"]:
+                update = update.cpu()
+
             pred_verts = pred_verts.cpu()
             pred_cam = pred_cam.cpu()
             pred_pose = pred_pose.cpu()
